@@ -65,9 +65,8 @@ stack *stack_Ctor(stack *stk, size_t capacity, const int nline, const char* fnam
 	stk->capacity = capacity;
 	stk->size = 0;
 	put_canary(ptr); //putting left canary
-	put_canary(ptr + //putting right canary
-				CAN_MEM / 2 + 
-				sizeof(stk->data[0]) * stk->capacity);	
+	//putting right canary
+	put_canary(ptr +  CAN_MEM / 2 + sizeof(stk->data[0]) * stk->capacity);	
 	stk->data = (stktype *)(ptr + CAN_MEM / 2); //put of data between canaries
 	put_poison(stk, 0);
 	//else 
@@ -182,9 +181,7 @@ void check_hash(stack *stk) {
 	size_t i = 0;
 	int temp = 0;
 	for (i = 1; i <= stk->size; i++) {
-		temp = (temp + 
-				(stk->data[i - 1] * i) % GREAT_NUM) %
-				GREAT_NUM;
+		temp = (temp + (stk->data[i - 1] * i) % GREAT_NUM) % GREAT_NUM;
 	}
 	if (temp != stk->hash_sum) {
 		//stack_dump();
