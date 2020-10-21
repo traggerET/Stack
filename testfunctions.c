@@ -21,22 +21,23 @@ typedef struct stack_t {
 	unsigned long long c_back;  //array of reserved ints
 } stack;
 
-stack  *stack_Ctor   (stack *stk, size_t capacity, const int nline, const char* fname);
-void    stack_push   (stack *stk, int n);
-stktype stack_pop    (stack *stk);
-int     stack_empty  (stack *stk);
-int     stack_full   (stack *stk);
-size_t  stack_size   (stack *stk);
-void    stack_Dtor   (stack *stk);
-stktype stack_back   (stack *stk);
+stack  *stack_Ctor	(stack *stk, size_t capacity, const int nline, const char* fname);
+void    stack_push	(stack *stk, int n);
+stktype stack_pop	(stack *stk);
+int     stack_empty	(stack *stk);
+int     stack_full	(stack *stk);
+size_t  stack_size	(stack *stk);
+void    stack_Dtor	(stack *stk);
+stktype stack_back	(stack *stk);
 void    stack_realloc(stack *stk);
-void 	put_canary   (char *ptr);
-void 	can_check	 (stack *stk);
-void 	replace_can  (stack *stk);
-void 	put_poison   (stack *stk, size_t pos);
-void 	poison_check (stack *stk);
-void 	hash_func	 (stack *stk, const char sign);
-void 	check_hash   (stack *stk);
+
+void 	put_canary	(char *ptr);
+void 	can_check	(stack *stk);
+void 	replace_can	(stack *stk);
+void 	put_poison	(stack *stk, size_t pos);
+void 	poison_check(stack *stk);
+void 	hash_func	(stack *stk, const char sign);
+void 	check_hash	(stack *stk);
 
 //put poison in unused elements
 void put_poison(stack *stk, size_t pos) {
@@ -63,14 +64,12 @@ stack *stack_Ctor(stack *stk, size_t capacity, const int nline, const char* fnam
 	}
 	stk->capacity = capacity;
 	stk->size = 0;
-
 	put_canary(ptr); //putting left canary
 	put_canary(ptr + //putting right canary
-			   CAN_MEM / 2 + 
-			   sizeof(stk->data[0]) * stk->capacity);	
+				CAN_MEM / 2 + 
+				sizeof(stk->data[0]) * stk->capacity);	
 	stk->data = (stktype *)(ptr + CAN_MEM / 2); //put of data between canaries
 	put_poison(stk, 0);
-
 	//else 
 	//	stack_dump(1);
 }
@@ -122,8 +121,7 @@ void replace_can(stack *stk) {
 void stack_realloc(stack *stk) {
 	char *old_ptr = (char *)stk->data - CAN_MEM / 2; //get adress of old block of mem.
 	stk->capacity += stk->capacity;
-	char *new_ptr = (char *)realloc(old_ptr, 
-									stk->capacity * sizeof(stktype) + CAN_MEM);
+	char *new_ptr = (char *)realloc(old_ptr, stk->capacity * sizeof(stktype) + CAN_MEM);
 	if (new_ptr == NULL) {
 		//stack_dump();
 		assert(1);
@@ -185,8 +183,8 @@ void check_hash(stack *stk) {
 	int temp = 0;
 	for (i = 1; i <= stk->size; i++) {
 		temp = (temp + 
-			   (stk->data[i - 1] * i) % GREAT_NUM) %
-			   GREAT_NUM;
+				(stk->data[i - 1] * i) % GREAT_NUM) %
+				GREAT_NUM;
 	}
 	if (temp != stk->hash_sum) {
 		//stack_dump();
