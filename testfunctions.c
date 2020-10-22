@@ -184,6 +184,7 @@ void stack_realloc(stack *stk) {
 
 void test_realloc(stack *stk) {
 	int i = 0;
+	size_t j = 0;
 	printf("\n");
 	printf("    Left canaries after realloc: ");
 	for (i = 1; i <= CAN_MEM / 2; i++) {
@@ -192,12 +193,12 @@ void test_realloc(stack *stk) {
 	}
 	printf("\n");
 	printf("    Checking data after realloc\n");
-	for (i = 0; i < stk->size; i++)
-		printf("    stk->data[%d] = %d\n", i, stk->data[i]);
+	for (j = 0; j < stk->size; j++)
+		printf("    stk->data[%d] = %d\n", j, stk->data[j]);
 	printf("\n");
-	for (i = stk->size; i < stk->capacity; i++)
-		if (stk->data[i] == POISON)
-			printf("    stk-data[%d] == POISON is true\n", i);
+	for (j = stk->size; j < stk->capacity; j++)
+		if (stk->data[j] == POISON)
+			printf("    stk-data[%d] == POISON is true\n", j);
 	printf("    Right canaries after realloc: ");
 	for (i = 0; i < CAN_MEM / 2; i++) {
 		if (*((char *)(&stk->data[stk->capacity - 1] + 1) + i) == CAN_VAL)
