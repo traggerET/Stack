@@ -379,13 +379,13 @@ int check_hash(stack *stk) {
 
 void stack_dump(int ERNUM, const char *func_name, const int nline, stack *stk) {
 	printf("List of errors: \n");
-	printf("STACK_NULL_PTR = %d\n", STACK_NULL_PTR);
-	printf("DATA_NULL_PTR = %d\n", 	DATA_NULL_PTR);
-	printf("NEG_CAPACITY = %d\n", 	NEG_CAPACITY);
-	printf("OVERSIZE = %d\n", 		OVERSIZE);
-	printf("HURT_CAN = %d\n", 		HURT_CAN);
-	printf("HURT_POISON = %d\n", 	HURT_POISON);
-	printf("HURT_HASH = %d\n", 		HURT_HASH);
+	printf("STACK_NULL_PTR = %d\n",	STACK_NULL_PTR);
+	printf("DATA_NULL_PTR = %d\n",	DATA_NULL_PTR);
+	printf("NEG_CAPACITY = %d\n",	NEG_CAPACITY);
+	printf("OVERSIZE = %d\n",		OVERSIZE);
+	printf("HURT_CAN = %d\n",		HURT_CAN);
+	printf("HURT_POISON = %d\n",	HURT_POISON);
+	printf("HURT_HASH = %d\n",		HURT_HASH);
 	printf("stack: ");
 	printf("in function: %s\n ", func_name);
 	printf("Number of line: %d\n", nline); 
