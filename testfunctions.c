@@ -3,6 +3,14 @@
 #include <string.h>
 #include <assert.h>
 
+enum ERNUM {STACK_NULL_PTR = 1,
+			DATA_NULL_PTR,
+			NEG_CAPACITY,
+			OVERSIZE,
+			HURT_CAN,
+			HURT_POISON, 
+			HURT_HASH}; 
+
 const char CAN_VAL = -123;
 const int CAN_MEM = 80;
 const int POISON = 0xFEEEDACE;
@@ -31,19 +39,55 @@ void    stack_Dtor	(stack *stk);
 stktype stack_back	(stack *stk);
 void    stack_realloc(stack *stk);
 
+int 	stack_error	(stack *stk);
+
 void 	put_canary	(char *ptr);
-void 	can_check	(stack *stk);
+int 	can_check	(stack *stk);
 void 	replace_can	(stack *stk);
 void 	put_poison	(stack *stk, size_t pos);
-void 	poison_check(stack *stk);
+int 	poison_check(stack *stk);
 void 	hash_func	(stack *stk, const char sign);
-void 	check_hash	(stack *stk);
+int 	check_hash	(stack *stk);
 
 void test_realloc(stack *stk);
 void test_Ctor(stack *stk);
 
+void stack_dump(int ERNUM, const char *func_name, const int nline, stack *stk);
+
+#define STACK_OK if (stack_error(stk) != 0) \
+					stack_dump(stack_error(stk), __func__, __LINE__, stk);
+
+int stack_error(stack *stk) { 
+	if (stk == NULL) 
+		return STACK_NULL_PTR;
+
+	if (stk->data == NULL)
+		return DATA_NULL_PTR;
+
+	if (stk->capacity < 0) 
+		return NEG_CAPACITY;
+	
+	if (stk->size > stk->capacity) 
+		return OVERSIZE;
+	
+	if (can_check(stk) != 0) 
+		return HURT_CAN;
+	
+	if (poison_check(stk) != 0) 
+		return HURT_POISON;
+	
+	if (check_hash(stk) != 0) 
+		return HURT_HASH;
+
+	return 0;
+}
+
 //put poison in unused elements
 void put_poison(stack *stk, size_t pos) {
+	if (stk == NULL) {
+		//stack_dump();
+		assert(!"stk == NULL");
+	}
 	size_t i = pos;
 	for (i = pos; i < stk->capacity; ++i) {
 		stk->data[i] = POISON;
@@ -52,6 +96,10 @@ void put_poison(stack *stk, size_t pos) {
 
 //putting canaries to the left and right from stack
 void put_canary(char *ptr) {
+	if (ptr == NULL) {
+		//stack_dump();
+		assert(!"ptr == NULL");
+	}
 	int i = 0;
 	for (i = 0; i < CAN_MEM / 2; i++) {
 		*(ptr + i) = CAN_VAL;
@@ -60,23 +108,35 @@ void put_canary(char *ptr) {
 
 //create new stack, 
 void stack_Ctor(stack *stk, size_t capacity) { 
+	if (stk == NULL) {
+		//stack_dump();
+		assert(!"stk == NULL");
+	}
+	if (capacity <= 0) {
+		//stack_dump();
+		assert(!"capacity <= 0 ");
+	}
 	char *ptr = (char *)calloc(capacity * sizeof(stk->data[0]) + CAN_MEM, sizeof(char));
 	if (ptr == NULL) {
 		//stack_dump(1);
-		assert(ptr);
+		assert(!"Cant create stack");
 	}
 	stk->capacity = capacity;
 	stk->size = 0;
+	stk->hash_sum = 0;
 	put_canary(ptr); //putting left canary
 	//putting right canary
 	put_canary(ptr +  CAN_MEM / 2 + sizeof(stk->data[0]) * stk->capacity);	
 	stk->data = (stktype *)(ptr + CAN_MEM / 2); //put of data between canaries
 	put_poison(stk, 0);
-	//else 
-	//	stack_dump(1);
+	STACK_OK;
 }
 
 void test_Ctor(stack *stk) {
+	if (stk == NULL) {
+		//stack_dump();
+		assert(!"stk == NULL");
+	}
 	printf("Testing Stack Constructor of size 5\n");
 	stack_Ctor(stk, 5);
 	int i = 0;
@@ -102,14 +162,20 @@ void test_Ctor(stack *stk) {
 
 //push new element in stack
 void stack_push(stack *stk, stktype n) {
+	STACK_OK;
 	if (stack_full(stk))
 		stack_realloc(stk); 
 	stk->data[stk->size++] = n;
 	hash_func(stk, ADD);
 	printf("%d is inserted\n",stk->data[stk->size - 1]);
+	STACK_OK;
 }
 
 void test_push(stack *stk) {
+	if (stk == NULL) {
+		//stack_dump();
+		assert(!"stk == NULL");
+	}
 	int i = 0;
 	printf("Testing Stack Push on values [17, 23]\n");
 	for (i = 17; i < 24; i++)
@@ -119,17 +185,23 @@ void test_push(stack *stk) {
 
 //extract and return top element
 stktype stack_pop(stack *stk) {
+	STACK_OK;
 	if (stack_empty(stk)) {
-		//stack_dump();
+		assert(!"Cant pop from empty stack");
 	}
 	hash_func(stk, SUB);
 	stktype extr = stk->data[--stk->size];
 	printf("%d is extracted\n", stk->data[stk->size]);
 	stk->data[stk->size] = POISON;
+	STACK_OK;
 	return extr;
 }
 
 void test_pop(stack *stk) { 
+	if (stk == NULL) {
+		//stack_dump();
+		assert(!"stk == NULL");
+	}
 	stack_pop(stk);
 	stack_pop(stk);
 	check_hash(stk);
@@ -137,42 +209,51 @@ void test_pop(stack *stk) {
 
 //check if it is empty
 int stack_empty(stack *stk) {
+	STACK_OK;
 	return (stk->size == 0); 
 }
 
 //check if it is full
 int stack_full(stack *stk) {
+	STACK_OK;
 	return (stk->size == stk->capacity - 1);  
 }
 
 //show size of stack
 size_t stack_size(stack *stk) {
-	//fprintf("logfile.txt", "function stack_size: stack size is %d", stk->size);
+	STACK_OK;
 	return stk->size;
 }
 
 //just look what's the last element 
 stktype stack_back(stack *stk) {
-	//fprintf("logfile.txt", "function stack_back: top element is %d", stkdata[stk->size - 1]);
+	STACK_OK;
 	return stk->data[stk->size - 1];
 }
 
 //when reallocating mem, we need to move right canary behind the borders of expanded array
 void replace_can(stack *stk) {
+	if (stk == NULL) {
+		//stack_dump();
+		assert(!"stk == NULL");
+	}
 	char *new_can_ptr = (char *)(&(stk->data[stk->capacity - 1]) + 1);
-	//(stktype *)(&stk->data[stk->capacity - 1]);
 	put_canary(new_can_ptr);
 }
 
 //reallocator of mem for stack
 void stack_realloc(stack *stk) {
+	if (stk == NULL) {
+		//stack_dump();
+		assert(!"stk == NULL");
+	}
 	printf("Reallocating...\n");
 	char *old_ptr = (char *)stk->data - CAN_MEM / 2; //get adress of old block of mem.
 	stk->capacity += stk->capacity;
 	char *new_ptr = (char *)realloc(old_ptr, stk->capacity * sizeof(stktype) + CAN_MEM);
 	if (new_ptr == NULL) {
 		//stack_dump();
-		assert(1);
+		assert(!"Cant reallocate mem");
 	}
 	printf("Realloc status - success\n");
 	stk->data = (stktype *)(new_ptr + CAN_MEM / 2);
@@ -183,6 +264,10 @@ void stack_realloc(stack *stk) {
 }
 
 void test_realloc(stack *stk) {
+	if (stk == NULL) {
+		//stack_dump();
+		assert(!"stk == NULL");
+	}
 	int i = 0;
 	size_t j = 0;
 	printf("\n");
@@ -212,40 +297,58 @@ void test_realloc(stack *stk) {
 
 //destructof of stack
 void stack_Dtor(stack *stk) {
+	if (stk == NULL) {
+		//stack_dump();
+		assert(!"stk == NULL");
+	}
 	put_poison(stk, 0); //annulate all mem.
-	free((char *)stk->data - CAN_MEM); //destruct data with canaries.
+	free((char *)stk->data - CAN_MEM / 2); //destruct data with canaries.
 	stk->size = 0;
 	stk->capacity = 0;
 	printf("Stack Destruction status - success\n");
 }
 
 //check if canary is intact
-void can_check(stack *stk) {
+int can_check(stack *stk) {
+	if (stk == NULL) {
+		//stack_dump();
+		assert(!"stk == NULL");
+	}
 	int i = 0;
 	for (i = 1; i <= CAN_MEM / 2; i++) {
 		//check left canary
 		if (*((char *)stk->data - i) != CAN_VAL) { 
-			//stack_dump();
+			return -1;
 		}
 		//check right canary
 		if (*((char*)(stk->data + stk->capacity) - 1 + i) != CAN_VAL) {
-			//stack_dump();
+			return -1;
 		}
-	}	
+	}
+	return 0;	
 }
 
 //check if all poisoned elements are intact 
-void poison_check(stack *stk) {
+int poison_check(stack *stk) {
+	if (stk == NULL) {
+		//stack_dump();
+		assert(!"stk == NULL");
+	}
 	size_t i = 0;
 	for (i = stk->size; i < stk->capacity; i++) {
 		if (stk->data[i] != POISON) {
-			//stack_dump();
+			return -1;
 		}
 	}
+	return 0;
 }
 
 //count hash summ with hash func
 void hash_func(stack *stk, const char sign) {
+	if (stk == NULL) {
+		//stack_dump();
+		assert(!"stk == NULL");
+	}
 	int d = (stk->size * stk->data[stk->size - 1]) % GREAT_NUM;
 	//if sign == ADD, we have new element push in stack.
 	if (sign > 0)
@@ -257,19 +360,71 @@ void hash_func(stack *stk, const char sign) {
 
 
 //compare reserved hash summ with real.
-void check_hash(stack *stk) {
+int check_hash(stack *stk) {
+	if (stk == NULL) {
+		//stack_dump();
+		assert(!"stk == NULL");
+	}
 	size_t i = 0;
 	unsigned int temp = 0;
 	for (i = 1; i <= stk->size; i++) {
 		temp = (temp + (stk->data[i - 1] * i) % GREAT_NUM) % GREAT_NUM;
 	}
 	if (temp != stk->hash_sum) {
-		//stack_dump();
+		return -1;
 	}
 	else 
-		printf("Hash summ status - success\n");
+		return 0;
 }
 
+void stack_dump(int ERNUM, const char *func_name, const int nline, stack *stk) {
+	printf("List of errors: \n");
+	printf("STACK_NULL_PTR = %d\n", STACK_NULL_PTR);
+	printf("DATA_NULL_PTR = %d\n", 	DATA_NULL_PTR);
+	printf("NEG_CAPACITY = %d\n", 	NEG_CAPACITY);
+	printf("OVERSIZE = %d\n", 		OVERSIZE);
+	printf("HURT_CAN = %d\n", 		HURT_CAN);
+	printf("HURT_POISON = %d\n", 	HURT_POISON);
+	printf("HURT_HASH = %d\n", 		HURT_HASH);
+	printf("stack: ");
+	printf("in function: %s\n ", func_name);
+	printf("Number of line: %d\n", nline); 
+	if ((ERNUM == 0) && (stk != NULL))
+		printf("OK");
+	else printf("NE OK. ERNUM = %d, ", ERNUM);
+	if (stk == NULL)
+		printf("stk == NULL POINTER\n");
+	else {
+		printf("[%p]\n", stk);
+		printf("{\n");
+		printf("size = %zu\n", stk->size);
+		printf("capacity = %zu\n", stk->capacity);
+		printf("data ");
+		if (stk->data == NULL)
+			printf("[NULL POINTER]");
+		else {
+			printf("[%p]\n", stk->data);
+			printf("{\n");
+			if (stk->capacity <= 0) 
+				printf("UNDEFINED OPERATION: ERNUM %d\n. Cant print data", NEG_CAPACITY);
+			else if (stk->size > stk->capacity) 
+				printf("UNDEFINED OPERATION: ERNUM %d\n. Cant print data", OVERSIZE);
+			else {
+				size_t i = 0;
+				for (i = 0; i < stk->size; i++)
+					printf("* [%zu] = %d\n", i, stk->data[i]);
+				for (i = stk->size; i < stk->capacity; i++) {
+					if (stk->data[i] == POISON)
+						printf("* [%zu] = POISON\n", i);
+					else
+						printf("! [%zu] != POISON\n", i);
+				}
+			}
+			printf("}\n");
+		}
+		printf("}\n");
+	}
+}
 
 
 int main() {
